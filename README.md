@@ -38,6 +38,22 @@ Python deps:
    python3 tape2tube.py --config config.json
    ```
 
+## Command line examples
+Upload the whole folder:
+```bash
+python3 tape2tube.py --config config.json
+```
+
+Upload just one (the first new MP3 found):
+```bash
+python3 tape2tube.py --config config.json --limit 1
+```
+
+Upload a specific file by name:
+```bash
+python3 tape2tube.py --config config.json --only demo.mp3
+```
+
 ## Config (example)
 ```json
 {
