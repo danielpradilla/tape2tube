@@ -27,7 +27,11 @@ Python deps:
    pip install -r requirements.txt
    ```
 
-2. Create OAuth credentials in Google Cloud and download `client_secrets.json`.
+2. Create OAuth credentials in Google Cloud and download `client_secrets.json`:
+   - Create a Google Cloud project
+   - Enable **YouTube Data API v3**
+   - Create OAuth credentials (**Desktop app**)
+   - Download the JSON and place it at `./client_secrets.json`
 3. Copy `config.example.json` to `config.json` and set paths.
 4. Run:
    ```bash
@@ -70,6 +74,7 @@ Python deps:
 You can copy these into `audio/` and `images/` to test quickly.
 
 ## Notes
+- `token.json` is created after the first OAuth login and stores your refresh/access tokens. Keep it private.
+- `state.json` tracks uploaded files (path, size, mtime, and video ID) to avoid duplicate uploads.
 - “Recorded on” date can be derived from file metadata (mtime by default).
 - If the API upload limit is hit, you’ll need to wait for YouTube’s daily quota reset.
-
