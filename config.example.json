@@ -1,0 +1,23 @@
+{
+  "audio_dir": "./audio",
+  "images_dir": "./images",
+  "out_dir": "./out",
+  "state_path": "./state.json",
+  "client_secrets": "./client_secrets.json",
+  "token_path": "./token.json",
+  "title_prefix": "",
+  "description_prefix": "pocket operator tinkering - ",
+  "description": "",
+  "tags": ["pocketoperator", "po-33"],
+  "category_id": "10",
+  "privacy_status": "unlisted",
+  "playlist_id": "",
+  "video_size": "1280x720",
+  "waveform": {
+    "enabled": true,
+    "mode": "line",
+    "color": "black",
+    "height": 200,
+    "fps": 30
+  }
+}
