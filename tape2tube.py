@@ -263,23 +263,30 @@ def main():
             full_description = f"{full_description}\n\n{description}"
 
         print(f"Uploading: {video_path.name}")
-        video_id = upload_video(
-            youtube,
-            video_path,
-            title=title,
-            description=full_description,
-            tags=tags,
-            category_id=category_id,
-            privacy_status=privacy_status,
-        )
+        try:
+            video_id = upload_video(
+                youtube,
+                video_path,
+                title=title,
+                description=full_description,
+                tags=tags,
+                category_id=category_id,
+                privacy_status=privacy_status,
+            )
+        except Exception as exc:
+            print(f"Upload failed for {mp3.name}: {exc}")
+            continue
         print(f"Uploaded video ID: {video_id}")
+        # Persist successful uploads before optional playlist calls.
+        mark_uploaded(mp3, state, video_id)
+        save_json(state_path, state)
 
         if playlist_id:
             print(f"Adding to playlist: {playlist_id}")
-            add_to_playlist(youtube, video_id, playlist_id)
-
-        mark_uploaded(mp3, state, video_id)
-        save_json(state_path, state)
+            try:
+                add_to_playlist(youtube, video_id, playlist_id)
+            except Exception as exc:
+                print(f"Playlist add failed for {video_id}: {exc}")
 
     return 0
 
