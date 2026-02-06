@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import random
 import subprocess
 import sys
@@ -81,9 +82,85 @@ def mark_uploaded(mp3_path, state, video_id):
     }
 
 
-def format_recorded_date(mp3_path):
-    ts = mp3_path.stat().st_mtime
+def format_date(ts):
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+
+
+def get_creation_ts(stat):
+    if sys.platform.startswith("win"):
+        return getattr(stat, "st_ctime", None)
+    return getattr(stat, "st_birthtime", None)
+
+
+def detect_mp3_rate_kbps(mp3_path):
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=bit_rate",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(mp3_path),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+    raw = result.stdout.strip()
+    if not raw:
+        return ""
+    try:
+        bps = int(raw)
+    except ValueError:
+        return ""
+    if bps <= 0:
+        return ""
+    return str(round(bps / 1000))
+
+
+def build_template_context(mp3_path):
+    stat = mp3_path.stat()
+    creation_ts = get_creation_ts(stat)
+    update_ts = stat.st_mtime
+    return {
+        "filename": mp3_path.name,
+        "basename": mp3_path.stem,
+        "creation_date": format_date(creation_ts) if creation_ts is not None else "",
+        "update_date": format_date(update_ts),
+        "filedate": format_date(update_ts),
+        "mp3_rate": detect_mp3_rate_kbps(mp3_path),
+    }
+
+
+def render_template(template, context):
+    if not template:
+        return ""
+
+    def replace(match):
+        key = match.group(1).strip()
+        return str(context.get(key, ""))
+
+    rendered = re.sub(r"\{([^{}]+)\}", replace, template)
+    # If braces are mismatched, return blank instead of raising errors.
+    if "{" in rendered or "}" in rendered:
+        return ""
+    return rendered
+
+
+def resolve_config_path(base_dir, value, default):
+    raw = value if value is not None else default
+    p = Path(raw)
+    if p.is_absolute():
+        return p
+    return (base_dir / p).resolve()
 
 
 def build_video(mp3_path, image_path, out_dir, video_size, waveform):
@@ -191,19 +268,22 @@ def add_to_playlist(youtube, video_id, playlist_id):
 
 def main():
     args = parse_args()
-    config_path = Path(args.config)
-    config = load_json(config_path)
+    cfg_path = Path(args.config)
+    config = load_json(cfg_path)
+    config_dir = cfg_path.resolve().parent
 
-    audio_dir = Path(args.audio_dir or config.get("audio_dir") or "./audio")
-    images_dir = Path(args.images_dir or config.get("images_dir") or "./images")
-    out_dir = Path(config.get("out_dir", "./out"))
-    state_path = Path(config.get("state_path", "./state.json"))
-    client_secrets = Path(config.get("client_secrets", "./client_secrets.json"))
-    token_path = Path(config.get("token_path", "./token.json"))
+    audio_dir = Path(args.audio_dir) if args.audio_dir else resolve_config_path(config_dir, config.get("audio_dir"), "./audio")
+    images_dir = Path(args.images_dir) if args.images_dir else resolve_config_path(config_dir, config.get("images_dir"), "./images")
+    out_dir = resolve_config_path(config_dir, config.get("out_dir"), "./out")
+    state_path = resolve_config_path(config_dir, config.get("state_path"), "./state.json")
+    client_secrets = resolve_config_path(config_dir, config.get("client_secrets"), "./client_secrets.json")
+    token_path = resolve_config_path(config_dir, config.get("token_path"), "./token.json")
 
     title_prefix = config.get("title_prefix", "")
     description = config.get("description", "")
     description_prefix = config.get("description_prefix", "pocket operator tinkering - ")
+    title_template = config.get("title_template", "")
+    description_template = config.get("description_template", "")
     tags = config.get("tags", [])
     category_id = str(config.get("category_id", "10"))
     privacy_status = config.get("privacy_status", "unlisted")
@@ -256,11 +336,19 @@ def main():
             print(f"Render failed for {mp3.name}: {exc}")
             continue
 
-        title = f"{title_prefix}{mp3.stem}"
-        recorded_on = format_recorded_date(mp3)
-        full_description = f"{description_prefix}{mp3.stem}\nRecorded on {recorded_on}"
-        if description:
-            full_description = f"{full_description}\n\n{description}"
+        template_context = build_template_context(mp3)
+        rendered_title = render_template(title_template, template_context)
+        rendered_desc = render_template(description_template, template_context)
+
+        title = rendered_title if rendered_title else f"{title_prefix}{mp3.stem}"
+        if rendered_desc:
+            full_description = rendered_desc
+            if description:
+                full_description = f"{full_description}\n\n{description}"
+        else:
+            full_description = f"{description_prefix}{mp3.stem}\nRecorded on {template_context['update_date']}"
+            if description:
+                full_description = f"{full_description}\n\n{description}"
 
         print(f"Uploading: {video_path.name}")
         try:

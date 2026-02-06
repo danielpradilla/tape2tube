@@ -12,6 +12,7 @@ Convert MP3s into static‑image videos and upload them to YouTube. The tool pic
 ## Requirements
 - Python 3.9+
 - `ffmpeg` on PATH
+- `ffprobe` on PATH (usually included with ffmpeg; used for `mp3_rate` template variable)
 - YouTube Data API v3 OAuth client (Desktop app)
 
 Python deps:
@@ -37,6 +38,18 @@ Python deps:
    ```bash
    python3 tape2tube.py --config config.json
    ```
+
+## Windows notes
+- `tape2tube.py` works on Windows.
+- Install Python 3.9+ and ffmpeg (with ffprobe), and ensure both are on PATH.
+- Use PowerShell commands:
+  ```powershell
+  py -3 -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  py -3 tape2tube.py --config config.json
+  ```
+- `creation_date` uses the file creation time on Windows. On Linux this may be blank if the filesystem does not expose creation time.
 
 ## Command line examples
 Upload the whole folder:
@@ -64,7 +77,9 @@ python3 tape2tube.py --config config.json --only demo.mp3
   "client_secrets": "./client_secrets.json",
   "token_path": "./token.json",
   "title_prefix": "",
+  "title_template": "{basename}",
   "description_prefix": "",
+  "description_template": "{filename} recorded on {creation_date}",
   "description": "",
   "tags": ["cool", "music"],
   "category_id": "10",
@@ -81,6 +96,21 @@ python3 tape2tube.py --config config.json --only demo.mp3
 }
 ```
 
+## Title and Description Templates
+You can configure `title_template` and `description_template` with placeholders:
+- `{filename}`: full file name, including extension (example: `demo.mp3`)
+- `{basename}`: file name without extension (example: `demo`)
+- `{creation_date}`: file creation date (`YYYY-MM-DD`) when available
+- `{update_date}`: file modification date (`YYYY-MM-DD`)
+- `{filedate}`: alias for `{update_date}`
+- `{mp3_rate}`: MP3 bitrate in kbps when available (example: `192`)
+
+Examples:
+- `title_template`: `{basename}`
+- `description_template`: `{filename} recorded on {creation_date}`
+
+If a template variable is invalid (for example `{basname}`), it resolves to blank text. If braces are malformed, the whole rendered template becomes blank and the script falls back to the default title/description behavior.
+
 ## Demo assets
 - `demo/demo.mp3` (copied from `loop1.mp3`)
 - `demo/demo-1.jpg`
@@ -92,5 +122,5 @@ You can copy these into `audio/` and `images/` to test quickly.
 ## Notes
 - `token.json` is created after the first OAuth login and stores your refresh/access tokens. Keep it private.
 - `state.json` tracks uploaded files (path, size, mtime, and video ID) to avoid duplicate uploads.
-- “Recorded on” date can be derived from file metadata (mtime by default).
+- Relative paths in `config.json` are resolved from the config file location, which improves portability across shells and operating systems.
 - If the API upload limit is hit, you’ll need to wait for YouTube’s daily quota reset.
