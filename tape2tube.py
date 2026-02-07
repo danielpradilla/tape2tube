@@ -326,14 +326,16 @@ def main():
 
     youtube = get_youtube_service(client_secrets, token_path)
 
-    for mp3 in mp3s:
+    total = len(mp3s)
+    for idx, mp3 in enumerate(mp3s, start=1):
+        print(f"[{idx}/{total}] Starting: {mp3.name}", flush=True)
         image = pick_random_jpg(images_dir)
         cmd, video_path = build_video(mp3, image, out_dir, video_size, waveform)
-        print(f"Rendering: {mp3.name} with {image.name}")
+        print(f"[{idx}/{total}] Rendering: {mp3.name} with {image.name}", flush=True)
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as exc:
-            print(f"Render failed for {mp3.name}: {exc}")
+            print(f"[{idx}/{total}] Render failed for {mp3.name}: {exc}", flush=True)
             continue
 
         template_context = build_template_context(mp3)
@@ -350,7 +352,7 @@ def main():
             if description:
                 full_description = f"{full_description}\n\n{description}"
 
-        print(f"Uploading: {video_path.name}")
+        print(f"[{idx}/{total}] Uploading: {video_path.name}", flush=True)
         try:
             video_id = upload_video(
                 youtube,
@@ -362,19 +364,20 @@ def main():
                 privacy_status=privacy_status,
             )
         except Exception as exc:
-            print(f"Upload failed for {mp3.name}: {exc}")
+            print(f"[{idx}/{total}] Upload failed for {mp3.name}: {exc}", flush=True)
             continue
-        print(f"Uploaded video ID: {video_id}")
+        print(f"[{idx}/{total}] Uploaded video ID: {video_id}", flush=True)
         # Persist successful uploads before optional playlist calls.
         mark_uploaded(mp3, state, video_id)
         save_json(state_path, state)
 
         if playlist_id:
-            print(f"Adding to playlist: {playlist_id}")
+            print(f"[{idx}/{total}] Adding to playlist: {playlist_id}", flush=True)
             try:
                 add_to_playlist(youtube, video_id, playlist_id)
             except Exception as exc:
-                print(f"Playlist add failed for {video_id}: {exc}")
+                print(f"[{idx}/{total}] Playlist add failed for {video_id}: {exc}", flush=True)
+        print(f"[{idx}/{total}] Done: {mp3.name}", flush=True)
 
     return 0
 
