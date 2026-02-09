@@ -86,6 +86,7 @@ python3 tape2tube.py --config config.json --only demo.mp3
   "privacy_status": "unlisted",
   "playlist_id": "",
   "video_size": "1280x720",
+  "delete_rendered_files": true,
   "waveform": {
     "enabled": true,
     "mode": "line",
@@ -110,6 +111,12 @@ Examples:
 - `description_template`: `{filename} recorded on {creation_date}`
 
 If a template variable is invalid (for example `{basname}`), it resolves to blank text. If braces are malformed, the whole rendered template becomes blank and the script falls back to the default title/description behavior.
+
+## Rendered File Cleanup
+- `delete_rendered_files` defaults to `true`.
+- At startup, old rendered `*.mp4` files in `out_dir` are removed.
+- After each successful upload, that file's rendered `.mp4` is deleted.
+- Set `delete_rendered_files` to `false` if you want to keep rendered files.
 
 ## Demo assets
 - `demo/demo.mp3` (copied from `loop1.mp3`)

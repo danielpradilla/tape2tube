@@ -46,6 +46,16 @@ def parse_args():
 def ensure_dir(path):
     path.mkdir(parents=True, exist_ok=True)
 
+def cleanup_rendered_files(out_dir):
+    deleted = 0
+    for mp4 in out_dir.glob("*.mp4"):
+        try:
+            mp4.unlink()
+            deleted += 1
+        except OSError as exc:
+            print(f"Failed to delete rendered file {mp4}: {exc}", flush=True)
+    return deleted
+
 
 def find_mp3s(input_dir):
     files = [p for p in input_dir.iterdir() if p.suffix.lower() == ".mp3"]
@@ -290,9 +300,14 @@ def main():
     playlist_id = config.get("playlist_id", "")
     video_size = config.get("video_size", "1280x720")
     waveform = config.get("waveform", {"enabled": False})
+    delete_rendered_files = bool(config.get("delete_rendered_files", True))
 
     ensure_dir(out_dir)
     ensure_dir(state_path.parent)
+    if delete_rendered_files:
+        removed = cleanup_rendered_files(out_dir)
+        if removed:
+            print(f"Deleted {removed} existing rendered MP4 file(s) from {out_dir}", flush=True)
 
     state = load_state(state_path)
 
@@ -377,6 +392,12 @@ def main():
                 add_to_playlist(youtube, video_id, playlist_id)
             except Exception as exc:
                 print(f"[{idx}/{total}] Playlist add failed for {video_id}: {exc}", flush=True)
+        if delete_rendered_files and video_path.exists():
+            try:
+                video_path.unlink()
+                print(f"[{idx}/{total}] Deleted local render: {video_path.name}", flush=True)
+            except OSError as exc:
+                print(f"[{idx}/{total}] Failed to delete local render {video_path.name}: {exc}", flush=True)
         print(f"[{idx}/{total}] Done: {mp3.name}", flush=True)
 
     return 0

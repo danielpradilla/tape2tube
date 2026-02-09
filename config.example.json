@@ -15,6 +15,7 @@
   "privacy_status": "unlisted",
   "playlist_id": "",
   "video_size": "1280x720",
+  "delete_rendered_files": true,
   "waveform": {
     "enabled": true,
     "mode": "line",
